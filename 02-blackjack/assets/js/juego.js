@@ -1,162 +1,185 @@
-let deck = [];
-const tipos = ['C', 'D', 'H', 'S'];
-const especiales = ['A', 'J', 'Q', 'K'];
+(() => {
+    'use strict';
 
-let puntosJugador = 0,
-    puntosComputadora = 0;
+    // Declaración de variables principales
+    let deck = []; // Arreglo que almacena la baraja
+    const tipos = ['C', 'D', 'H', 'S'], // Tipos de cartas: Corazones, Diamantes, Tréboles y Espadas
+          especiales = ['A', 'J', 'Q', 'K']; // Cartas especiales
 
+    let puntosJugadores = []; // Arreglo para almacenar los puntos de cada jugador
 
-// referencias del HTML
-const btnPedir = document.querySelector('#btnPedir');
-console.log(btnPedir);
+    // Referencias del HTML
+    const btnPedir = document.querySelector('#btnPedir'),
+          btnDetener = document.querySelector('#btnDetener'),
+          btnNuevo = document.querySelector('#btnNuevo');
 
-const btnDetener = document.querySelector('#btnDetener'); 
+    const divCartasJugadores = document.querySelectorAll('.divCartas'),
+          puntosAcomulados = document.querySelectorAll('small');
 
-const btnNuevo = document.querySelector('#btnNuevo');
+    // ---------------------- FUNCIONES ----------------------
 
-const puntosAcomulados = document.querySelectorAll('small');
+    /**
+     * Inicializa el juego reiniciando variables y la interfaz.
+     * @param {number} numJugadores - Cantidad de jugadores en el juego (incluyendo computadora).
+     */
+    const inicializarJuego = (numJugadores = 2) => {
+        deck = crearDeck(); // Crear una nueva baraja
+        puntosJugadores = Array(numJugadores).fill(0); // Inicializar los puntos de cada jugador
 
-const jugadorCartas = document.querySelector('#jugador-cartas');
+        // Reiniciar puntajes y cartas en la interfaz
+        puntosAcomulados.forEach(elem => elem.innerText = 0);
+        divCartasJugadores.forEach(elem => elem.innerHTML = '');
 
-const jugadorComputadora  = document.querySelector('#computadora-cartas')
+        // Habilitar botones de juego
+        btnPedir.disabled = false;
+        btnDetener.disabled = false;
+    };
 
-// esta función crea una nueva baraja o deck
-const creardeck = () => {
-    for (let i = 2; i <= 10; i++) {
+    /**
+     * Crea una nueva baraja de cartas y la baraja aleatoriamente.
+     * @returns {Array} Baraja barajada.
+     */
+    const crearDeck = () => {
+        deck = [];
+        for (let i = 2; i <= 10; i++) {
+            for (let tipo of tipos) {
+                deck.push(i + tipo);
+            }
+        }
         for (let tipo of tipos) {
-            deck.push(i + tipo);
+            for (let esp of especiales) {
+                deck.push(esp + tipo);
+            }
         }
-    }
-    for (let tipo of tipos) {
-        for (let esp of especiales) {
-            deck.push(esp + tipo);
+        return _.shuffle(deck); // Baraja aleatoriamente usando Lodash
+    };
+
+    /**
+     * Toma una carta de la baraja.
+     * @returns {string} Carta seleccionada.
+     */
+    const pedirCarta = () => {
+        if (deck.length === 0) {
+            throw new Error('No hay cartas en el deck');
         }
-    }
-    deck = _.shuffle(deck); // Asumiendo que usas lodash para barajar
-    console.log(deck);
-    return deck;
-}
-creardeck();
+        return deck.pop();
+    };
 
-// esta función permite tomar una carta de la baraja
-const pedirCarta = () => {
-    if (deck.length === 0) {
-        throw new Error('No hay cartas en el deck');
-    }
-    const carta = deck.pop();
-    console.log(deck);
-    console.log(carta);
-    return carta;
-}
+    /**
+     * Obtiene el valor de una carta.
+     * @param {string} carta - Carta de la baraja.
+     * @returns {number} Valor de la carta.
+     */
+    const valorCarta = (carta) => {
+        const valor = carta.substring(0, carta.length - 1);
+        return isNaN(valor) ? (valor === 'A' ? 11 : 10) : parseInt(valor);
+    };
 
-// Función para calcular el valor de la carta
-const valorCarta = (carta) => {
-    const valor = carta.substring(0, carta.length - 1);
-    return (isNaN(valor)) ?
-        (valor === 'A') ? 11 : 10 :
-        valor * 1;
-}
+    /**
+     * Acumula los puntos del jugador/computadora.
+     * @param {string} carta - Carta tomada.
+     * @param {number} turno - Turno del jugador (0 es el primer jugador, el último es la computadora).
+     * @returns {number} Puntos acumulados del jugador.
+     */
+    const acumularPuntos = (carta, turno) => {
+        puntosJugadores[turno] += valorCarta(carta);
+        puntosAcomulados[turno].innerText = puntosJugadores[turno];
+        return puntosJugadores[turno];
+    };
 
-//Turno de la computadora
- 
-
-const turnoComputadora = (puntosMinimos) => {
-
-    do{
-        const carta = pedirCarta();
-        puntosComputadora = puntosComputadora + valorCarta(carta);
-        puntosAcomulados[1].innerText = puntosComputadora;
-     
-        //<img class="carta" src="cartas/cartas/10C.png" alt="">
-     
+    /**
+     * Crea y muestra una carta en la interfaz.
+     * Comentario original: Esta parte crea la imagen de la carta y la agrega al contenedor correspondiente.
+     * @param {string} carta - Carta a mostrar.
+     * @param {number} turno - Turno del jugador.
+     */
+    const crearCarta = (carta, turno) => {
         const imagenCarta = document.createElement('img');
-        imagenCarta.src =`cartas/cartas/${carta}.png`;
+        imagenCarta.src = `cartas/cartas/${carta}.png`;
         imagenCarta.classList.add('carta');
-        jugadorComputadora.append(imagenCarta);
+        divCartasJugadores[turno].append(imagenCarta);
+    };
 
-        if(puntosMinimos>21){
-            break;
+    /**
+     * Determina el ganador del juego.
+     * Comentario original: Se establece la lógica para mostrar el ganador o empate.
+     */
+    const determinarGanador = () => {
+        const [puntosMinimos, puntosComputadora] = puntosJugadores;
+        setTimeout(() => {
+            if (puntosComputadora === puntosMinimos) {
+                alert('Nadie gana');
+            } else if (puntosMinimos > 21) {
+                alert('Computadora gana');
+            } else if (puntosComputadora > 21) {
+                alert('Jugador gana');
+            } else {
+                alert('Computadora gana');
+            }
+        }, 100);
+    };
+
+    /**
+     * Turno de la computadora para jugar hasta superar al jugador o alcanzar el máximo permitido.
+     * Comentario original: La computadora sigue pidiendo cartas hasta superar los puntos del jugador o llegar al límite.
+     * @param {number} puntosMinimos - Puntos que la computadora debe superar.
+     */
+    const turnoComputadora = (puntosMinimos) => {
+        let puntosComputadora = puntosJugadores[puntosJugadores.length - 1];
+        do {
+            const carta = pedirCarta();
+            puntosComputadora = acumularPuntos(carta, puntosJugadores.length - 1);
+            crearCarta(carta, puntosJugadores.length - 1);
+        } while ((puntosComputadora < puntosMinimos) && (puntosMinimos <= 21));
+
+        determinarGanador();
+    };
+
+    // ---------------------- EVENTOS ----------------------
+
+    /**
+     * Evento: Botón "Pedir Carta"
+     * Comentario original: Evalúa si el jugador perdió, ganó o sigue jugando.
+     */
+    btnPedir.addEventListener('click', () => {
+        const carta = pedirCarta();
+        const puntosJugador = acumularPuntos(carta, 0);
+        crearCarta(carta, 0);
+
+        if (puntosJugador > 21) {
+            console.warn('Perdiste');
+            btnPedir.disabled = true;
+            btnDetener.disabled = true;
+            turnoComputadora(puntosJugador);
+        } else if (puntosJugador === 21) {
+            console.warn('Ganaste');
+            alert('GANASTE');
+            btnPedir.disabled = true;
+            btnDetener.disabled = true;
         }
+    });
 
-    }while((puntosComputadora<puntosMinimos) && (puntosMinimos<=21));
+    /**
+     * Evento: Botón "Detener"
+     * Comentario original: Permite pasar el turno a la computadora.
+     */
+    btnDetener.addEventListener('click', () => {
+        btnPedir.disabled = true;
+        btnDetener.disabled = true;
+        turnoComputadora(puntosJugadores[0]);
+    });
 
+    /**
+     * Evento: Botón "Nuevo Juego"
+     * Comentario original: Reinicia el juego para empezar desde cero.
+     */
+    btnNuevo.addEventListener('click', () => {
+        inicializarJuego(); // Reinicia el juego
+    });
 
-    setTimeout(() => {
+    // Retorno público para inicializar el juego externamente
+    return {
+        nuevoJuego: inicializarJuego
+    };
+})();
 
-        if(puntosComputadora=== puntosMinimos){
-            alert('Nadie gana');
-        } else if(puntosMinimos>21){
-            alert('computadora gana');
-        }else if (puntosComputadora>21){
-            alert('Jugador Gana');
-        }
-        else{
-            alert('Computadora Gana')
-        }
-        
-    }, 10);
-};
-
-
-
-// Llamada a la función
-const carta = pedirCarta();
-const valor = valorCarta(carta);
-console.log({ valor });
-
-
-//Eventos 
-
-btnPedir.addEventListener('click',()=>{
-   const carta = pedirCarta();
-   puntosJugador = puntosJugador + valorCarta(carta);
-   puntosAcomulados[0].innerText = puntosJugador;
-
-   //<img class="carta" src="cartas/cartas/10C.png" alt="">
-
-   const imagenCarta = document.createElement('img');
-   imagenCarta.src =`cartas/cartas/${carta}.png`;
-   imagenCarta.classList.add('carta');
-   jugadorCartas.append(imagenCarta);
-
-   if(puntosJugador>21){
-     console.warn('Perdiste');
-     btnPedir.disabled = true;
-     btnDetener.disabled=true;
-     turnoComputadora(puntosJugador);
-   }
-   else if(puntosJugador===21){
-    console.warn('Ganaste');
-    alert('GANASTE');
-    btnPedir.disabled = true;
-    btnDetener.disabled=true;
-   }
-   
-});
-
-btnDetener.addEventListener('click',()=>{
-    btnPedir.disabled = true;
-    btnDetener.disabled=true;
-    turnoComputadora(puntosJugador);
-
-})
-
-
-btnNuevo.addEventListener('click', () => {
-    console.clear(); // Limpiar consola para un nuevo inicio
-
-    deck = []; // Vaciar la baraja
-    creardeck(); // Crear una nueva baraja
-
-    puntosJugador = 0;
-    puntosComputadora = 0;
-
-    puntosAcomulados[0].innerText = 0;
-    puntosAcomulados[1].innerText = 0;
-
-    jugadorCartas.innerHTML = ''; // Limpiar las cartas del jugador
-    jugadorComputadora.innerHTML = ''; // Limpiar las cartas de la computadora
-
-    btnPedir.disabled = false;
-    btnDetener.disabled = false;
-});
